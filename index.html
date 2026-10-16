@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de botón · Proyecto Repsol</title>
+<style>
+  :root{--ink:#1d2a33;--muted:#5d6b75;--line:#d9dee2;--paper:#f6f7f8;--accent:#ff8200;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--paper);line-height:1.5}
+  header{padding:48px 24px 24px;max-width:960px;margin:0 auto}
+  h1{margin:0 0 8px;font-size:2rem;line-height:1.15}
+  header p{margin:0;color:var(--muted);max-width:60ch}
+  main{max-width:960px;margin:0 auto;padding:0 24px 48px;display:grid;grid-template-columns:320px 1fr;gap:24px}
+  .panels{display:flex;flex-direction:column;gap:12px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px}
+  .panel label{display:block;font-weight:bold;margin-bottom:8px;font-size:.95rem}
+  .row{display:flex;gap:8px;align-items:center}
+  input[type=color]{width:48px;height:40px;border:1px solid var(--line);border-radius:6px;padding:2px;background:#fff;cursor:pointer}
+  input[type=text],select{width:100%;padding:10px;border:1px solid var(--line);border-radius:6px;font-size:1rem}
+  .hex{font-family:Courier New,monospace;color:var(--muted);font-size:.9rem}
+  .preview{background:#fff;border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:48px 24px;min-height:340px;text-align:center}
+  .preview h2{margin:0;font-size:1.5rem}
+  .preview p{margin:0;color:var(--muted)}
+  #btn{padding:12px 28px;font-size:1rem;font-weight:bold;border:0;border-radius:4px;cursor:pointer;transition:transform .15s}
+  #btn:active{transform:scale(.97)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap}
+  .actions button{padding:12px 18px;border-radius:6px;font-size:1rem;cursor:pointer;border:1px solid var(--ink);background:#fff;color:var(--ink)}
+  .actions button.primary{background:var(--ink);color:#fff}
+  .actions button:focus-visible,#btn:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  #status{min-height:1.4em;color:var(--muted);font-size:.9rem;margin:0}
+  @media(max-width:760px){main{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Diseña tu botón</h1>
+  <p>Cambia el texto, los colores y la tipografía. Guarda un borrador y descarga el botón listo para usar.</p>
+</header>
+<main>
+  <section class="panels" aria-label="Opciones del botón">
+    <div class="panel">
+      <label for="text">Texto del botón</label>
+      <input type="text" id="text" value="Acceso a la grabación">
+    </div>
+    <div class="panel">
+      <label for="url">Enlace del botón (URL)</label>
+      <input type="text" id="url" value="https://" placeholder="https://tu-enlace.com">
+    </div>
+    <div class="panel">
+      <label for="color">Color del texto</label>
+      <div class="row"><input type="color" id="color" value="#ffffff"><span class="hex" id="colorHex">#ffffff</span></div>
+    </div>
+    <div class="panel">
+      <label for="bg">Color de fondo del botón</label>
+      <div class="row"><input type="color" id="bg" value="#007f9a"><span class="hex" id="bgHex">#007f9a</span></div>
+    </div>
+    <div class="panel">
+      <label for="font">Tipografía</label>
+      <select id="font">
+        <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+        <option value="Arial, Helvetica, sans-serif">Arial</option>
+        <option value="Verdana, Geneva, sans-serif">Verdana</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="'Times New Roman', serif">Times New Roman</option>
+        <option value="'Courier New', monospace">Courier New</option>
+      </select>
+    </div>
+  </section>
+
+  <section class="preview" aria-live="polite">
+    <h2>Vista previa</h2>
+    <p>Así quedará tu botón.</p>
+    <button id="btn" type="button">Acceso a la grabación</button>
+    <div class="actions">
+      <button class="primary" id="save" type="button">Guardar borrador</button>
+      <button id="load" type="button">Cargar borrador</button>
+      <button id="copy" type="button">Copiar código</button>
+      <button id="download" type="button">Descargar botón</button>
+    </div>
+    <p id="status"></p>
+  </section>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const KEY = 'repsol-boton-borrador';
+  const fields = ['text','url','color','bg','font'];
+
+  function render(){
+    const b = $('btn');
+    b.textContent = $('text').value || 'Botón';
+    b.style.color = $('color').value;
+    b.style.background = $('bg').value;
+    b.style.fontFamily = $('font').value;
+    $('colorHex').textContent = $('color').value;
+    $('bgHex').textContent = $('bg').value;
+  }
+  function say(msg){ $('status').textContent = msg; }
+
+  fields.forEach(f => $(f).addEventListener('input', render));
+
+  $('save').addEventListener('click', () => {
+    const data = {};
+    fields.forEach(f => data[f] = $(f).value);
+    try { localStorage.setItem(KEY, JSON.stringify(data)); say('Borrador guardado.'); }
+    catch(e){ say('No se pudo guardar el borrador en este navegador.'); }
+  });
+
+  function load(silent){
+    try {
+      const raw = localStorage.getItem(KEY);
+      if(!raw){ if(!silent) say('Todavía no hay ningún borrador guardado.'); return; }
+      const data = JSON.parse(raw);
+      fields.forEach(f => { if(data[f] !== undefined) $(f).value = data[f]; });
+      render();
+      if(!silent) say('Borrador cargado.');
+    } catch(e){ if(!silent) say('No se pudo cargar el borrador.'); }
+  }
+  $('load').addEventListener('click', () => load(false));
+
+  function emailSnippet(){
+    const esc = t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const text = esc($('text').value || 'Botón');
+    const url = esc($('url').value || '#');
+    const color = $('color').value, bg = $('bg').value;
+    const font = $('font').value.replace(/"/g,"'");
+    const width = Math.max(160, Math.round(($('text').value.length || 6) * 10 + 60));
+    return `<!-- Botón compatible con Outlook clásico, Outlook.com, Gmail y Apple Mail -->
+<table role="presentation" border="0" cellpadding="0" cellspacing="0">
+  <tr>
+    <td align="center" bgcolor="${bg}" style="border-radius:4px;background-color:${bg};">
+      <!--[if mso]>
+      <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${url}" style="height:44px;v-text-anchor:middle;width:${width}px;" arcsize="9%" stroke="f" fillcolor="${bg}">
+        <w:anchorlock/>
+        <center style="color:${color};font-family:${font};font-size:16px;font-weight:bold;">${text}</center>
+      </v:roundrect>
+      <![endif]-->
+      <!--[if !mso]><!-- -->
+      <a href="${url}" target="_blank" style="display:inline-block;padding:12px 28px;font-family:${font};font-size:16px;font-weight:bold;line-height:20px;color:${color};text-decoration:none;border-radius:4px;background-color:${bg};">${text}</a>
+      <!--<![endif]-->
+    </td>
+  </tr>
+</table>`;
+  }
+
+  $('copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(emailSnippet()); say('Código copiado. Pégalo en el HTML de tu correo.'); }
+    catch(e){ say('No se pudo copiar. Usa "Descargar botón".'); }
+  });
+
+  $('download').addEventListener('click', () => {
+    const html = `<!DOCTYPE html>
+<html lang="es" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->
+<title>Botón</title>
+</head>
+<body style="margin:0;padding:24px;">
+${emailSnippet()}
+</body>
+</html>`;
+    const url = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+    const a = document.createElement('a');
+    a.href = url; a.download = 'boton-email.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    say('Botón descargado como boton-email.html.');
+  });
+
+  load(true);
+  render();
+</script>
+</body>
+</html>
